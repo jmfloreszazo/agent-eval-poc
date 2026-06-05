@@ -27,6 +27,14 @@ enough to defend in a risk review.
 > Credo AI, Saidot, Entra Agent ID) are optional reporting / identity
 > layers on top — they sit *above* or *below* this repo, never
 > replace it.
+>
+> *Scope / honest caveat.* The matrices below compare **capability
+> coverage**, not operational maturity. A POC proves the primitive
+> already exists in your subscription; it does **not**, by itself,
+> replace the alerting, long-term retention, RBAC on the telemetry,
+> managed dashboards and red-teaming depth a mature commercial product
+> ships. Read every ✅ below as "buildable on services you already
+> own", not "production-equivalent out of the box".
 
 ---
 
@@ -212,7 +220,11 @@ in your Azure subscription.** Concretely:
 | Auditor-ready evidence pack (regulation → control → evidence) | Optional, on top of 2/3 | **Microsoft Purview Compliance Manager** (consumes the JSON / Markdown the scenarios already produce) |
 
 If an Azure customer asks *"what else do we need to buy?"* — the
-answer is **nothing**. The same subscription that hosts the workload
+answer is **nothing more to cover these capabilities**. What a
+commercial product still buys you is *operational maturity* — alerting,
+long-term retention, RBAC over the telemetry, managed dashboards and
+deeper red-teaming. This repo ships those as primitives you wire up
+yourself, not as a turnkey product. The same subscription that hosts the workload
 already hosts every service required to operate, govern and audit it.
 
 ---

@@ -20,6 +20,10 @@ workflow.
 > less is not "worse". The goal is to answer one question on every PR:
 > *"who wrote what, and how was it integrated?"* — exactly the question
 > code review has always answered for humans.
+> The percentage is a **churn-based proxy** (lines added/deleted): a human
+> reformatting or refactoring agent code, or a rename, will skew it. The
+> solid part is the chain of custody (`Author`/`Committer`); the % is
+> indicative, never evidence in an IP dispute.
 
 ## How this scenario differs from the other three
 

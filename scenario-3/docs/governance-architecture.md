@@ -152,6 +152,27 @@ latency, cost, user (via JWT/API key), jailbreak blocking.
 
 - GitHub Copilot Chat IDE — that call goes GitHub → closed models, we cannot
   route it through our APIM (platform limitation).
+- **Any agent or app holding raw model keys/endpoints** — if it knows the
+  AOAI/Foundry API key it calls the model directly and bypasses the entire
+  gateway. The gateway is NOT a control unless it is the *only* path to the
+  model.
+
+### Integrity precondition (read before "this covers 100%")
+
+Layers 2–4 only truly govern if TWO conditions hold — this POC assumes them
+but **does not enforce** them:
+
+1. **Egress is blocked**: the model is reachable *exclusively* through the
+   gateway (private endpoint + NSG/firewall; no direct egress to
+   `*.openai.azure.com`).
+2. **Zero raw keys in circulation**: `disableLocalAuth=true` on the
+   AOAI/Foundry account and authentication only via Entra ID / managed
+   identity. As long as an API key sits in a `.env`, the control is
+   optional.
+
+Without both, RULE 0 ("everything goes through @corp") is a convention
+enforced by an after-the-fact evaluator (a **detective** control), not a
+**preventive** one.
 
 ### Design
 
@@ -322,7 +343,7 @@ Once the extension is deployed to the internal Marketplace:
 
 ```kusto
 // 360 view: what happened with a user in the last 24h
-let actor = "jose.flores@example.com";
+let actor = "someone@example.com";
 union
     (customEvents | where name startswith "copilot."),
     (dependencies | where name startswith "corp."),
