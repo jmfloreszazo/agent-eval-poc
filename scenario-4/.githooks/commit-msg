@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+MSG="$1"
+if ! grep -Eq "^(Agent|Person):" "$MSG"; then
+    echo "Commit message must include an 'Agent: <name>' or 'Person: <name>' trailer."
+    exit 1
+fi

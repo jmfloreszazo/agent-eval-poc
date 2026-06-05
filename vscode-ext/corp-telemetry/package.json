@@ -1,0 +1,86 @@
+{
+  "name": "corp-telemetry",
+  "displayName": "Corp Governance Telemetry",
+  "description": "Programmatic governance gateway for Copilot Chat. Captures model id, real token counts, cost, verdict, and emits OpenTelemetry to Application Insights for every @corp turn. Layer 4 of the governance architecture (see scenario-3/docs/governance-architecture.md).",
+  "version": "0.1.0",
+  "publisher": "corp",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.95.0"
+  },
+  "categories": [
+    "Other",
+    "AI",
+    "Chat"
+  ],
+  "activationEvents": [
+    "onChatParticipant:corp"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "chatParticipants": [
+      {
+        "id": "corp",
+        "name": "corp",
+        "fullName": "Corp Governance",
+        "description": "Governed entry point. Captures model + tokens + cost into App Insights, then dispatches to corp.py / fraud-analyst / legal-counsel.",
+        "isSticky": true,
+        "commands": [
+          {
+            "name": "case",
+            "description": "Run a fraud + legal analysis pipeline through corp.py for a given case id."
+          },
+          {
+            "name": "ask",
+            "description": "Ask the gateway a free-form question. Still telemetered, but does NOT run the case pipeline."
+          }
+        ]
+      }
+    ],
+    "configuration": {
+      "title": "Corp Governance Telemetry",
+      "properties": {
+        "corp.appInsightsConnectionString": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Application Insights connection string. If empty, the extension reads `APPLICATIONINSIGHTS_CONNECTION_STRING` from the environment (or `${workspaceFolder}/.env.scenario-3`)."
+        },
+        "corp.actor": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Identity tag emitted on every span (e.g. your Entra UPN). Defaults to `os.userInfo().username` if empty."
+        },
+        "corp.team": {
+          "type": "string",
+          "default": "unknown",
+          "markdownDescription": "Team / cost-center tag emitted on every span."
+        },
+        "corp.pythonPath": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Python executable used to invoke `scenario-3/src/corp.py`. Empty = auto-detect (`${workspaceFolder}/.venv/Scripts/python.exe` on Windows, `${workspaceFolder}/.venv/bin/python` elsewhere)."
+        },
+        "corp.pricingYamlPath": {
+          "type": "string",
+          "default": "scenario-3/src/pricing.yaml",
+          "markdownDescription": "Workspace-relative path to `pricing.yaml`. Used to compute `corp.cost_usd` per turn."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p .",
+    "watch": "tsc -watch -p .",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "@types/vscode": "^1.95.0",
+    "typescript": "^5.6.0"
+  },
+  "dependencies": {
+    "applicationinsights": "^3.3.0",
+    "yaml": "^2.5.1"
+  }
+}

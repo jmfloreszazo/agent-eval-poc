@@ -1,0 +1,85 @@
+name: copilot-audit-pull
+
+# Capa 1 — hourly pull of GitHub Copilot audit log, usage and seats into
+# Application Insights. See scenario-3/docs/governance-architecture.md.
+#
+# REQUIRED SECRETS (configure in repo / org settings):
+#   GH_COPILOT_AUDIT_TOKEN
+#       Fine-grained PAT or GitHub App installation token with:
+#         - read:audit_log
+#         - manage_billing:copilot OR read:enterprise
+#       Issued by an org owner / enterprise admin.
+#   APPLICATIONINSIGHTS_CONNECTION_STRING
+#       Connection string of the governance App Insights resource.
+#
+# REQUIRED VARS:
+#   GH_COPILOT_ENTERPRISE  (preferred)  enterprise slug, e.g. "example"
+#   GH_COPILOT_ORG         (fallback)   org slug
+#
+# Cursor (.copilot-audit-cursor.json) is cached between runs so each
+# invocation is incremental.
+
+on:
+  schedule:
+    - cron: "7 * * * *"   # hourly, offset 7 min to avoid the rush
+  workflow_dispatch:
+    inputs:
+      kind:
+        description: "Which signal to pull"
+        type: choice
+        required: true
+        default: all
+        options: [audit, usage, seats, all]
+      dry_run:
+        description: "Print events instead of emitting"
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: copilot-audit-pull
+  cancel-in-progress: false
+
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: "pip"
+          cache-dependency-path: scenario-3/requirements.txt
+
+      - name: Install minimal deps
+        run: |
+          python -m pip install --upgrade pip
+          # We only need the OTel + Azure Monitor exporter at runtime.
+          pip install azure-monitor-opentelemetry>=1.6.0 PyYAML>=6.0.2 tiktoken>=0.8.0
+
+      - name: Restore cursor
+        uses: actions/cache@v4
+        with:
+          path: scenario-3/.copilot-audit-cursor.json
+          key: copilot-audit-cursor-${{ github.repository }}
+          restore-keys: copilot-audit-cursor-
+
+      - name: Pull Copilot signals → App Insights
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_COPILOT_AUDIT_TOKEN }}
+          GITHUB_ENTERPRISE: ${{ vars.GH_COPILOT_ENTERPRISE }}
+          GITHUB_ORG: ${{ vars.GH_COPILOT_ORG }}
+          APPLICATIONINSIGHTS_CONNECTION_STRING: ${{ secrets.APPLICATIONINSIGHTS_CONNECTION_STRING }}
+          COPILOT_AUDIT_LOOKBACK_DAYS: "7"
+          COPILOT_AUDIT_MAX_PAGES: "50"
+        run: |
+          KIND="${{ github.event.inputs.kind || 'all' }}"
+          DRY="${{ github.event.inputs.dry_run }}"
+          ARGS=("$KIND")
+          if [ "$DRY" = "true" ]; then ARGS=(--dry-run "$KIND"); fi
+          python scenario-3/tools/copilot_audit_pull.py "${ARGS[@]}"

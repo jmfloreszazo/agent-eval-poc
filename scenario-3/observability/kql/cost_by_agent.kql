@@ -1,0 +1,31 @@
+// Cost + quality per agent over the last 24h
+// (fraud-analyst vs legal-counsel). Adds ground-truth accuracy
+// derived from corp.verdict vs corp.ground_truth on fraud-stage spans.
+dependencies
+| where timestamp > ago(24h)
+| where name == "corp.agent.invocation"
+| extend
+    agent        = tostring(customDimensions["corp.agent_name"]),
+    stage        = tostring(customDimensions["corp.stage"]),
+    model        = tostring(customDimensions["gen_ai.request.model"]),
+    source       = tostring(customDimensions["gen_ai.usage.source"]),
+    in_tokens    = toint(customDimensions["gen_ai.usage.input_tokens"]),
+    out_tokens   = toint(customDimensions["gen_ai.usage.output_tokens"]),
+    cost_usd     = todouble(customDimensions["corp.cost_usd"]),
+    verdict      = tostring(customDimensions["corp.verdict"]),
+    ground_truth = tostring(customDimensions["corp.ground_truth"]),
+    blocked      = tobool(customDimensions["corp.blocked"]),
+    latency_ms   = toint(customDimensions["corp.latency_ms"])
+| summarize
+    calls          = count(),
+    in_tokens      = sum(in_tokens),
+    out_tokens     = sum(out_tokens),
+    cost_usd       = round(sum(cost_usd), 4),
+    avg_latency_ms = round(avg(latency_ms), 0),
+    p95_latency_ms = round(percentile(latency_ms, 95), 0),
+    blocked_pct    = round(100.0 * countif(blocked == true) / count(), 1),
+    official_pct   = round(100.0 * countif(source == "official") / count(), 1),
+    accuracy_pct   = round(100.0 * countif(stage == "fraud" and verdict == ground_truth)
+                           / iif(countif(stage == "fraud") == 0, 1, countif(stage == "fraud")), 1)
+  by agent, stage, model
+| order by cost_usd desc

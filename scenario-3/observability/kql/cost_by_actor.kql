@@ -1,0 +1,16 @@
+// Cost per actor (developer / service account), last 7 days.
+// Group by repo + team for chargeback views.
+dependencies
+| where timestamp > ago(7d)
+| where name == "corp.agent.invocation"
+| extend
+    actor      = tostring(customDimensions["corp.actor"]),
+    team       = tostring(customDimensions["corp.team"]),
+    repo       = tostring(customDimensions["corp.repo"]),
+    agent      = tostring(customDimensions["corp.agent_name"]),
+    cost_usd   = todouble(customDimensions["corp.cost_usd"])
+| summarize
+    calls    = count(),
+    cost_usd = round(sum(cost_usd), 4)
+  by actor, team, repo, agent
+| order by cost_usd desc

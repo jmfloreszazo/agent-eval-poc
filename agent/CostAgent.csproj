@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net9.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>CostAgent</RootNamespace>
+    <AssemblyName>cost-agent</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- OpenTelemetry: the agent emits spans (AGENT / LLM / TOOL) that
+         Phoenix ingests over OTLP. This is what justifies .NET here: native
+         instrumentation, not a wrapper. -->
+    <PackageReference Include="OpenTelemetry" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.Console" Version="1.10.0" />
+    <PackageReference Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.10.0" />
+    <!-- Real LLM: Azure OpenAI with function calling. -->
+    <PackageReference Include="Azure.AI.OpenAI" Version="2.1.0" />
+    <PackageReference Include="DotNetEnv" Version="3.1.1" />
+  </ItemGroup>
+
+</Project>

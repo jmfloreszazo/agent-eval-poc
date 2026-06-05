@@ -1,0 +1,39 @@
+// Drift between estimated and official token counts (and cost) for
+// the SAME turn, joined by corr_id. Lets you tune `hidden_*` overheads
+// in pricing.yaml and validate your tokenizer choices.
+//
+// The demo script emits both spans per turn:
+//   - official:    corp.corr_id = "<run>:<case>"
+//   - estimated:   corp.corr_id = "<run>:<case>:est"
+//                   corp.compared_to = "<run>:<case>"
+let est = dependencies
+| where timestamp > ago(1d)
+| where name == "corp.agent.invocation"
+| extend
+    src       = tostring(customDimensions["gen_ai.usage.source"]),
+    compared  = tostring(customDimensions["corp.compared_to"]),
+    in_est    = toint(customDimensions["gen_ai.usage.input_tokens"]),
+    out_est   = toint(customDimensions["gen_ai.usage.output_tokens"]),
+    cost_est  = todouble(customDimensions["corp.cost_usd"])
+| where src startswith "estimated" and isnotempty(compared)
+| project compared, in_est, out_est, cost_est;
+let off = dependencies
+| where timestamp > ago(1d)
+| where name == "corp.agent.invocation"
+| extend
+    src       = tostring(customDimensions["gen_ai.usage.source"]),
+    corr      = tostring(customDimensions["corp.corr_id"]),
+    in_off    = toint(customDimensions["gen_ai.usage.input_tokens"]),
+    out_off   = toint(customDimensions["gen_ai.usage.output_tokens"]),
+    cost_off  = todouble(customDimensions["corp.cost_usd"]),
+    model     = tostring(customDimensions["gen_ai.request.model"])
+| where src == "official"
+| project corr, model, in_off, out_off, cost_off;
+off
+| join kind=inner est on $left.corr == $right.compared
+| extend
+    drift_in_pct  = round(100.0 * (in_est  - in_off)  / iif(in_off  == 0, 1, in_off), 1),
+    drift_out_pct = round(100.0 * (out_est - out_off) / iif(out_off == 0, 1, out_off), 1),
+    drift_cost    = round(cost_est - cost_off, 6)
+| project corr, model, in_off, in_est, drift_in_pct, out_off, out_est, drift_out_pct, cost_off, cost_est, drift_cost
+| order by abs(drift_in_pct) desc

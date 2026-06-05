@@ -1,0 +1,25 @@
+# Experiment 2 — Azure AI Foundry stack
+# (kept minimal so the script stays under five seconds to install on a fresh venv)
+
+# Core: Azure OpenAI client + Stored Completions
+openai>=1.55.0
+
+# Foundry quality + safety evaluators (Coherence, Groundedness, Relevance,
+# Fluency, ContentSafety, IndirectAttack, ProtectedMaterial). The "remote"
+# evaluators (safety/governance) hit the Foundry project endpoint.
+azure-ai-evaluation>=1.0.0
+
+# OpenTelemetry -> Application Insights (the agent + evaluators emit spans).
+azure-monitor-opentelemetry>=1.6.0
+opentelemetry-instrumentation-openai-v2>=2.1b0
+
+# Hosted agents + continuous evaluation rules.
+azure-ai-projects>=2.0.0
+
+# Auth + Log Analytics governance queries.
+azure-identity>=1.19.0
+azure-monitor-query>=1.4.0
+
+# Helpers.
+python-dotenv>=1.0.0
+pandas>=2.2.0

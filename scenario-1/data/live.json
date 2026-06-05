@@ -1,0 +1,76 @@
+{
+  "schema_version": "1.0",
+  "agent": "azure-cost-agent",
+  "model": "azure-openai:gpt-4o-mini",
+  "cases": [
+    {
+      "id": "live-20260604-133551-001",
+      "input": "How much does this subscription cost per month?",
+      "actual_output": "The subscription costs $412.50 per month. This total includes costs from various resources such as virtual machines, databases, and storage.",
+      "expected_tools": [],
+      "tools_called": [
+        {
+          "name": "list_resources",
+          "input_parameters": {},
+          "output": [
+            "vm-app-01",
+            "sql-db-01",
+            "storage-logs"
+          ]
+        },
+        {
+          "name": "get_unit_price",
+          "input_parameters": {
+            "resource": "vm-app-01"
+          },
+          "output": {
+            "resource": "vm-app-01",
+            "monthly_usd": 142.00
+          }
+        },
+        {
+          "name": "get_unit_price",
+          "input_parameters": {
+            "resource": "sql-db-01"
+          },
+          "output": {
+            "resource": "sql-db-01",
+            "monthly_usd": 198.50
+          }
+        },
+        {
+          "name": "get_unit_price",
+          "input_parameters": {
+            "resource": "storage-logs"
+          },
+          "output": {
+            "resource": "storage-logs",
+            "monthly_usd": 72.00
+          }
+        },
+        {
+          "name": "estimate_monthly_cost",
+          "input_parameters": {},
+          "output": {
+            "currency": "USD",
+            "monthly_total": 412.50,
+            "breakdown": {
+              "vm-app-01": 142.00,
+              "sql-db-01": 198.50,
+              "storage-logs": 72.00
+            }
+          }
+        }
+      ],
+      "tokens": {
+        "prompt": 3084,
+        "completion": 110,
+        "total": 3194
+      },
+      "token_budget": 8000,
+      "latency_ms": 7767,
+      "trace_id": "0b4128b3a88162c4ac03aac4f4310f61",
+      "span_id": "c371f5e7ebd05c28"
+    }
+  ]
+}

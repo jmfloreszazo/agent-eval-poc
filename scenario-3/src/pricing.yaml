@@ -1,0 +1,116 @@
+# Pricing table — USD per 1M tokens, per model, per effective date.
+#
+# Looked up at runtime by scenario-3/src/pricing.py. The "date" field
+# is the day the price became effective; pricing.py picks the most
+# recent entry <= today.
+#
+# Sources (jun-2026, verify quarterly):
+#   - https://azure.microsoft.com/pricing/details/cognitive-services/openai-service/
+#   - https://openai.com/api/pricing/
+#   - https://www.anthropic.com/pricing
+#   - https://ai.google.dev/pricing
+#   - https://github.com/marketplace/models (Copilot SaaS — opaque, no per-token billing)
+#
+# IMPORTANT: when invoicing or chargeback matters, reconcile against
+# Azure Cost Management API. These are estimates.
+
+models:
+
+  # ---- GitHub Models naming (slash-prefixed) ----
+  openai/gpt-4o-mini:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 0.150
+        output_per_million_usd: 0.600
+
+  openai/gpt-4o:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 2.50
+        output_per_million_usd: 10.00
+
+  openai/gpt-5:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 5.00
+        output_per_million_usd: 15.00
+
+  # ---- Bare names (kept for non-GitHub callers / unit tests) ----
+  gpt-4o-mini:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 0.150
+        output_per_million_usd: 0.600
+
+  gpt-4o:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 2.50
+        output_per_million_usd: 10.00
+
+  gpt-5:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 5.00
+        output_per_million_usd: 15.00
+
+  o3-mini:
+    family: openai
+    encoder: o200k_base
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 1.10
+        output_per_million_usd: 4.40
+
+  claude-opus-4.7:
+    family: anthropic
+    encoder: anthropic-sdk   # uses Anthropic SDK count_tokens
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 15.00
+        output_per_million_usd: 75.00
+
+  claude-sonnet-4:
+    family: anthropic
+    encoder: anthropic-sdk
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 3.00
+        output_per_million_usd: 15.00
+
+  gemini-2.5-pro:
+    family: google
+    encoder: google-sdk
+    prices:
+      - date: 2026-01-01
+        input_per_million_usd: 1.25
+        output_per_million_usd: 10.00
+
+# Hidden-overhead estimates: tokens YOU don't see but the model counts
+# (system prompts, tool schemas, message envelope, ...). Used when the
+# call is opaque (Copilot SaaS). Skip when you have access to `usage`.
+overheads:
+  # Copilot Chat: empirical estimate of the hidden system + tools
+  # tokens GitHub adds on top of your visible prompt.
+  github-copilot-chat:
+    hidden_input_tokens: 600       # rough; tune with your own measurements
+    hidden_output_tokens: 0
+  github-copilot-coding-agent:
+    hidden_input_tokens: 1500
+    hidden_output_tokens: 0
+  # Direct API calls (Foundry, AOAI): you see everything, no extra.
+  direct:
+    hidden_input_tokens: 0
+    hidden_output_tokens: 0

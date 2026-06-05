@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# pre-push — Local gate "before the PR".
+# Git has no Pull Request hook (PRs live in the platform, not in git),
+# but a push is the step that precedes opening/updating a PR. So here:
+#   1. We print the PR composition by author (agents vs. people, % LoC).
+#   2. We run the tests as a gate: if they fail, the push is aborted.
+#
+# Activate with:  git config core.hooksPath .githooks
+set -uo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# --- Reference base branch (remote first, then local) --------------------------
+BASE=""
+for cand in "origin/main" "origin/master" "main" "master"; do
+  if git rev-parse --verify -q "$cand" >/dev/null; then BASE="$cand"; break; fi
+done
+
+# --- 1. PR composition by author ----------------------------------------------
+echo ""
+echo "════════════ PR composition (pre-push) ════════════"
+if [ -n "$BASE" ] && [ -x "$ROOT/scripts/pr-author-summary.sh" ]; then
+  bash "$ROOT/scripts/pr-author-summary.sh" "$BASE" || true
+else
+  echo "(could not determine base branch; summary skipped)"
+fi
+echo "═══════════════════════════════════════════════════"
+
+# --- 2. Test gate -------------------------------------------------------------
+PY=""
+for c in py python3 python; do
+  command -v "$c" >/dev/null 2>&1 && { PY="$c"; break; }
+done
+
+if [ -n "$PY" ] && ls "$ROOT"/test_*.py >/dev/null 2>&1; then
+  echo "Running tests with '$PY -m unittest' ..."
+  if ! ( cd "$ROOT" && "$PY" -m unittest discover -p 'test_*.py' ); then
+    echo ""
+    echo "❌ Tests failing. Push aborted."
+    echo "   Fix the tests, or run 'git push --no-verify' to force (not recommended)."
+    exit 1
+  fi
+  echo "✓ Tests OK."
+else
+  echo "ℹ No tests run (no Python interpreter, or no test_*.py files)."
+fi
+
+echo "✓ pre-push complete."
+exit 0

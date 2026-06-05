@@ -1,0 +1,40 @@
+name: agent-evals
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  agent-trajectory-evals:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # --- .NET layer: run the shared agent and produce the trajectory ---
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Run agent -> trajectory.json
+        run: |
+          # No OTLP endpoint in CI; the ConsoleExporter is enough. The goal
+          # here is to generate the trajectory that DeepEval will evaluate.
+          dotnet run --project agent -c Release -- scenario-1/data/trajectory.json
+
+      # --- Python layer: evals-as-code (pipeline gate) ---
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install eval deps
+        run: pip install -r scenario-1/evals/requirements.txt
+
+      - name: Run DeepEval (deterministic gates)
+        # Tool-correctness + token budget: no LLM, no cost.
+        # The task-completion (GEval) eval only runs if you set the secret.
+        working-directory: scenario-1
+        env:
+          TRAJECTORY_PATH: ${{ github.workspace }}/scenario-1/data/trajectory.json
+          # OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}   # uncomment for GEval
+        run: pytest evals/test_agent_trajectory.py -v

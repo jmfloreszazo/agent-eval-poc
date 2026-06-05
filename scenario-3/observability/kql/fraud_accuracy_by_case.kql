@@ -1,0 +1,18 @@
+// Per-case verdict matrix for the fraud-analyst over the last 24h.
+// Shows ground truth, predicted verdict, hit/miss, and cost.
+dependencies
+| where timestamp > ago(24h)
+| where name == "corp.agent.invocation"
+| extend
+    agent        = tostring(customDimensions["corp.agent_name"]),
+    stage        = tostring(customDimensions["corp.stage"]),
+    case_id      = tostring(customDimensions["corp.case_id"]),
+    verdict      = tostring(customDimensions["corp.verdict"]),
+    ground_truth = tostring(customDimensions["corp.ground_truth"]),
+    cost_usd     = todouble(customDimensions["corp.cost_usd"]),
+    latency_ms   = toint(customDimensions["corp.latency_ms"]),
+    model        = tostring(customDimensions["gen_ai.request.model"])
+| where stage == "fraud"
+| extend hit = iif(verdict == ground_truth, "OK", "MISS")
+| project timestamp, case_id, ground_truth, verdict, hit, cost_usd, latency_ms, model
+| order by case_id asc, timestamp desc

@@ -1,0 +1,82 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.0.3, pluggy-1.6.0 -- C:\sources\personal\agent-eval-poc\agent-eval-poc\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+rootdir: C:\sources\personal\agent-eval-poc\agent-eval-poc
+configfile: pytest.ini
+plugins: anyio-4.13.0, deepeval-4.0.5, asyncio-1.4.0, repeat-0.9.4, rerunfailures-16.3, xdist-3.8.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 20 items
+
+evals/test_agent_trajectory.py::test_tool_correctness[cost-001] PASSED   [  5%]
+evals/test_agent_trajectory.py::test_tool_correctness[cost-002] PASSED   [ 10%]
+evals/test_agent_trajectory.py::test_tool_correctness[cost-003] PASSED   [ 15%]
+evals/test_agent_trajectory.py::test_tool_correctness[cost-004] PASSED   [ 20%]
+evals/test_agent_trajectory.py::test_token_budget[cost-001] PASSED       [ 25%]
+evals/test_agent_trajectory.py::test_token_budget[cost-002] PASSED       [ 30%]
+evals/test_agent_trajectory.py::test_token_budget[cost-003] PASSED       [ 35%]
+evals/test_agent_trajectory.py::test_token_budget[cost-004] PASSED       [ 40%]
+evals/test_agent_trajectory.py::test_task_completion[cost-001] PASSED    [ 45%]
+evals/test_agent_trajectory.py::test_task_completion[cost-002] PASSED    [ 50%]
+evals/test_agent_trajectory.py::test_task_completion[cost-003] PASSED    [ 55%]
+evals/test_agent_trajectory.py::test_task_completion[cost-004] PASSED    [ 60%]
+evals/test_agent_trajectory.py::test_groundedness[cost-001] PASSED       [ 65%]
+evals/test_agent_trajectory.py::test_groundedness[cost-002] PASSED       [ 70%]
+evals/test_agent_trajectory.py::test_groundedness[cost-003] PASSED       [ 75%]
+evals/test_agent_trajectory.py::test_groundedness[cost-004] PASSED       [ 80%]
+evals/test_agent_trajectory.py::test_answer_relevancy[cost-001] FAILED   [ 85%]
+evals/test_agent_trajectory.py::test_answer_relevancy[cost-002] PASSED   [ 90%]
+evals/test_agent_trajectory.py::test_answer_relevancy[cost-003] PASSED   [ 95%]
+evals/test_agent_trajectory.py::test_answer_relevancy[cost-004] PASSED   [100%]Running teardown with pytest sessionfinish...
+
+
+================================== FAILURES ===================================
+E   AssertionError: [cost-001] AnswerRelevancy score=0.3333333333333333 threshold=0.7 reason=The score is 0.33 because the output fails to provide a specific cost for the subscription and does not directly address the question about the monthly cost.
+---------------------------- Captured stderr call -----------------------------
+
+C:\sources\personal\agent-eval-poc\agent-eval-poc\evals\phoenix_publisher.py:86: AssertionError: [cost-001] AnswerRelevancy score=0.3333333333333333 threshold=0.7 reason=The score is 0.33 because the output fails to provide a specific cost for the subscription and does not directly address the question about the monthly cost.
+============================== warnings summary ===============================
+.venv\Lib\site-packages\ldap3\utils\asn1.py:50
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\.venv\Lib\site-packages\ldap3\utils\asn1.py:50: DeprecationWarning: tagMap is deprecated. Please use TAG_MAP instead.
+    from pyasn1.codec.ber.encoder import tagMap, typeMap, AbstractItemEncoder
+
+.venv\Lib\site-packages\ldap3\utils\asn1.py:50
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\.venv\Lib\site-packages\ldap3\utils\asn1.py:50: DeprecationWarning: typeMap is deprecated. Please use TYPE_MAP instead.
+    from pyasn1.codec.ber.encoder import tagMap, typeMap, AbstractItemEncoder
+
+<frozen abc>:106
+  <frozen abc>:106: DeprecationWarning: `MCPServerStreamableHTTP` is deprecated and will be removed in v2. Use `MCPToolset('http://.../mcp')` instead ù Streamable HTTP is the default for HTTP URLs.
+
+.venv\Lib\site-packages\pydantic\_internal\_generate_schema.py:325: 48 warnings
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\.venv\Lib\site-packages\pydantic\_internal\_generate_schema.py:325: PydanticDeprecatedSince20: `json_encoders` is deprecated. See https://docs.pydantic.dev/2.13/concepts/serialization/#custom-serializers for alternatives. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    warnings.warn(
+
+evals/test_agent_trajectory.py::test_tool_correctness[cost-001]
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\.venv\Lib\site-packages\deepeval\utils.py:194: DeprecationWarning: There is no current event loop
+    loop = asyncio.get_event_loop()
+
+evals/test_agent_trajectory.py::test_task_completion[cost-001]
+evals/test_agent_trajectory.py::test_task_completion[cost-001]
+evals/test_agent_trajectory.py::test_task_completion[cost-002]
+evals/test_agent_trajectory.py::test_task_completion[cost-002]
+evals/test_agent_trajectory.py::test_task_completion[cost-003]
+evals/test_agent_trajectory.py::test_task_completion[cost-003]
+evals/test_agent_trajectory.py::test_task_completion[cost-004]
+evals/test_agent_trajectory.py::test_task_completion[cost-004]
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\evals\test_agent_trajectory.py:82: DeprecationWarning: 'LLMTestCaseParams' is deprecated and will be removed in a future release. Use 'SingleTurnParams' instead.
+    from deepeval.test_case import LLMTestCaseParams
+
+evals/test_agent_trajectory.py::test_groundedness[cost-001]
+evals/test_agent_trajectory.py::test_groundedness[cost-001]
+evals/test_agent_trajectory.py::test_groundedness[cost-002]
+evals/test_agent_trajectory.py::test_groundedness[cost-002]
+evals/test_agent_trajectory.py::test_groundedness[cost-003]
+evals/test_agent_trajectory.py::test_groundedness[cost-003]
+evals/test_agent_trajectory.py::test_groundedness[cost-004]
+evals/test_agent_trajectory.py::test_groundedness[cost-004]
+  C:\sources\personal\agent-eval-poc\agent-eval-poc\evals\test_agent_trajectory.py:103: DeprecationWarning: 'LLMTestCaseParams' is deprecated and will be removed in a future release. Use 'SingleTurnParams' instead.
+    from deepeval.test_case import LLMTestCaseParams
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED evals/test_agent_trajectory.py::test_answer_relevancy[cost-001] - Asse...
+============ 1 failed, 19 passed, 68 warnings in 84.67s (0:01:24) =============

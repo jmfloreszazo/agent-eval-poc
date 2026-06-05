@@ -1,0 +1,47 @@
+name: PR composition summary
+
+# Posts (and updates) a sticky comment on every PR with the per-author
+# line-of-code breakdown — agents and people, with percentages.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  summary:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Generate per-author summary
+        run: |
+          git fetch --no-tags origin "${{ github.base_ref }}" || true
+          bash scripts/pr-author-summary.sh "origin/${{ github.base_ref }}" > summary.md
+          echo "----- generated summary -----"
+          cat summary.md
+
+      - name: Upsert sticky PR comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          REPO="${{ github.repository }}"
+          PR="${{ github.event.pull_request.number }}"
+          BODY="$(cat summary.md)"
+
+          # Do we already have a comment? (identified by the HTML marker)
+          ID="$(gh api "repos/$REPO/issues/$PR/comments" \
+                  --jq '.[] | select(.body | contains("<!-- pr-author-summary -->")) | .id' \
+                | head -1)"
+
+          if [ -n "$ID" ]; then
+            gh api --method PATCH "repos/$REPO/issues/comments/$ID" -f body="$BODY"
+          else
+            gh api --method POST "repos/$REPO/issues/$PR/comments" -f body="$BODY"
+          fi

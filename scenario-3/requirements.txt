@@ -1,0 +1,18 @@
+# Experiment 3 — estimated token telemetry + cost per turn.
+# Extends scenario-2 deps with token counting libraries.
+
+# Reuse everything from scenario-2 (Foundry agent, AOAI client, OTel,
+# Azure Monitor exporter, evaluators). The demo script invokes the
+# already-deployed exp2-finops-agent.
+-r ../scenario-2/requirements.txt
+
+# OpenAI / Azure OpenAI / GitHub Models tokenizer (BPE).
+# o200k_base encoder for GPT-4o / GPT-5 / o-series.
+tiktoken>=0.8.0
+
+# Anthropic SDK for Claude tokenizer (count_tokens endpoint).
+# Optional: only needed if you instrument Anthropic calls.
+anthropic>=0.40.0
+
+# YAML pricing table.
+PyYAML>=6.0.2

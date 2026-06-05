@@ -1,0 +1,117 @@
+<!--
+    APIM AI Gateway policy for the Azure OpenAI / Foundry inference API.
+    Capa 2 of the governance architecture
+    (see scenario-3/docs/governance-architecture.md).
+
+    Inbound chain:
+      1. base                          inherit product/global policies
+      2. set-backend-service           route to AOAI backend (the only one for now)
+      3. authentication-managed-identity
+                                       APIM MI -> Cognitive Services User on AOAI
+      4. azure-openai-token-limit      per-subscription cost guardrail
+      5. llm-content-safety            block jailbreak/harmful before AOAI sees it
+      6. azure-openai-emit-token-metric
+                                       per-team, per-actor, per-agent metrics
+                                       to App Insights (Total / Prompt / Completion)
+      7. set-header X-Corp-Corr-Id     write the correlation id back so the caller
+                                       can reuse it in its own spans
+    Outbound:
+      8. expose x-tokens-consumed / x-tokens-remaining so the SDK can read
+         the official counts
+    On-error:
+      9. friendly 4xx for token-limit and content-safety failures
+-->
+<policies>
+    <inbound>
+        <base />
+
+        <!-- Backend & auth -->
+        <set-backend-service backend-id="aoai-backend" />
+        <authentication-managed-identity
+            resource="https://cognitiveservices.azure.com"
+            output-token-variable-name="msi-access-token" />
+        <set-header name="Authorization" exists-action="override">
+            <value>@("Bearer " + (string)context.Variables["msi-access-token"])</value>
+        </set-header>
+
+        <!-- Capture corp metadata sent by the caller (corp.py / extension) -->
+        <set-variable name="corpCorrId"
+            value="@(context.Request.Headers.GetValueOrDefault("X-Corp-Corr-Id", Guid.NewGuid().ToString()))" />
+        <set-variable name="corpTeam"
+            value="@(context.Request.Headers.GetValueOrDefault("X-Corp-Team", "unknown"))" />
+        <set-variable name="corpActor"
+            value="@(context.Request.Headers.GetValueOrDefault("X-Corp-Actor", "unknown"))" />
+        <set-variable name="corpAgent"
+            value="@(context.Request.Headers.GetValueOrDefault("X-Corp-Agent", "unknown"))" />
+
+        <!-- Cost guardrail: 50K tokens/min per APIM subscription key -->
+        <azure-openai-token-limit
+            tokens-per-minute="50000"
+            counter-key="@(context.Subscription.Id)"
+            estimate-prompt-tokens="true"
+            tokens-consumed-header-name="x-tokens-consumed"
+            remaining-tokens-header-name="x-tokens-remaining" />
+
+        <!-- Content safety: jailbreak + harmful content -->
+        <llm-content-safety backend-id="contentsafety-backend">
+            <categories output-type="EightSeverityLevels">
+                <category name="Hate" threshold="4" />
+                <category name="Sexual" threshold="4" />
+                <category name="SelfHarm" threshold="4" />
+                <category name="Violence" threshold="4" />
+            </categories>
+            <shield-prompt>true</shield-prompt>
+        </llm-content-safety>
+
+        <!-- Per-call metrics dimensioned by corp.* -->
+        <azure-openai-emit-token-metric namespace="corp.aigateway">
+            <dimension name="Subscription"   value="@(context.Subscription.Id)" />
+            <dimension name="API"            value="@(context.Api.Name)" />
+            <dimension name="Operation"      value="@(context.Operation.Id)" />
+            <dimension name="DeploymentName" value="@(context.Request.MatchedParameters.GetValueOrDefault("deployment-id", "unknown"))" />
+            <dimension name="CorpTeam"       value="@((string)context.Variables["corpTeam"])" />
+            <dimension name="CorpActor"      value="@((string)context.Variables["corpActor"])" />
+            <dimension name="CorpAgent"      value="@((string)context.Variables["corpAgent"])" />
+            <dimension name="CorpCorrId"     value="@((string)context.Variables["corpCorrId"])" />
+        </azure-openai-emit-token-metric>
+    </inbound>
+
+    <backend>
+        <forward-request timeout="120" />
+    </backend>
+
+    <outbound>
+        <base />
+        <!-- Echo corp correlation id back to the caller -->
+        <set-header name="X-Corp-Corr-Id" exists-action="override">
+            <value>@((string)context.Variables["corpCorrId"])</value>
+        </set-header>
+    </outbound>
+
+    <on-error>
+        <base />
+        <choose>
+            <when condition="@(context.LastError.Source == "azure-openai-token-limit")">
+                <return-response>
+                    <set-status code="429" reason="Token Limit Exceeded" />
+                    <set-header name="Retry-After" exists-action="override">
+                        <value>60</value>
+                    </set-header>
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"corp-aigateway: token rate limit exceeded; retry in ~60s"}</set-body>
+                </return-response>
+            </when>
+            <when condition="@(context.LastError.Source == "llm-content-safety")">
+                <return-response>
+                    <set-status code="400" reason="Content Filtered" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"error":"corp-aigateway: blocked by content safety policy","corr_id":"@((string)context.Variables["corpCorrId"])"}</set-body>
+                </return-response>
+            </when>
+        </choose>
+    </on-error>
+</policies>

@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json.schemastore.org/copilot-hooks.json",
+  "_description": "Workspace-wide governance hooks for agent-eval-poc. Apply to EVERY chat session in this repo, regardless of which custom agent (or none) is active. The inline hooks in .github/agents/*.agent.md still fire for those specific agents; this file is the safety net that guarantees a span is emitted even when the user is in default chat mode or talks to a non-custom agent. Telemetry runner is best-effort and never blocks the chat (exit 0).",
+  "hooks": {
+    "SessionStart": [
+      {
+        "type": "command",
+        "windows": ".\\.venv\\Scripts\\python.exe scenario-3\\tools\\hook_emit_invocation.py session-start",
+        "linux": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py session-start",
+        "osx": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py session-start",
+        "timeout": 10
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "type": "command",
+        "windows": ".\\.venv\\Scripts\\python.exe scenario-3\\tools\\hook_emit_invocation.py workspace",
+        "linux": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py workspace",
+        "osx": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py workspace",
+        "timeout": 15
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "windows": ".\\.venv\\Scripts\\python.exe scenario-3\\tools\\hook_emit_invocation.py session-stop",
+        "linux": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py session-stop",
+        "osx": "./.venv/bin/python scenario-3/tools/hook_emit_invocation.py session-stop",
+        "timeout": 10
+      }
+    ]
+  }
+}
