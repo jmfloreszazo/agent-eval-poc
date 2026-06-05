@@ -1,35 +1,35 @@
-# Governance architecture — quién, qué y cuánto
+# Governance architecture — who, what and how much
 
-> Objetivo: control total y auditable de cada interacción con LLMs en la
-> organización — **quién** invoca, **qué** agente, **qué** modelo, **cuántos**
-> tokens y **cuánto** cuesta — y poder bloquear/explicar cada decisión.
+> Goal: full, auditable control of every LLM interaction in the organization —
+> **who** invokes it, **which** agent, **which** model, **how many** tokens and
+> **how much** it costs — with the ability to block and explain every decision.
 
 ---
 
-## 0. La verdad incómoda primero
+## 0. The uncomfortable truth first
 
-Una sola herramienta NO resuelve el problema. La razón es un límite duro de
-plataforma:
+A single tool will NOT solve this problem. The reason is a hard platform
+limitation:
 
-| Componente | Expone prompt? | Expone respuesta? | Expone modelo? | Expone tokens? |
+| Component | Exposes prompt? | Exposes response? | Exposes model? | Exposes tokens? |
 |---|---|---|---|---|
-| GitHub Copilot Chat (IDE, modelo por defecto) | ❌ | ❌ | ❌ por turno | ❌ por turno |
-| GitHub Copilot Audit Log API | ❌ | ❌ | ❌ | sólo agregados |
-| GitHub Copilot Usage Metrics API | ❌ | ❌ | ❌ | sólo agregados |
-| VS Code `vscode.lm` API (extensión propia) | ✅ tu participant | ✅ tu participant | ✅ | ✅ via `countTokens()` |
-| Hooks `.agent.md` / `.github/hooks/*.json` | sólo `prompt` | ❌ | ❌ | ❌ |
-| APIM AI Gateway (proxy LLM corporativo) | ✅ | ✅ | ✅ | ✅ exacto del proveedor |
-| `corp.py` (orquestador propio sobre Azure OpenAI) | ✅ | ✅ | ✅ | ✅ exacto |
+| GitHub Copilot Chat (IDE, default model) | ❌ | ❌ | ❌ per turn | ❌ per turn |
+| GitHub Copilot Audit Log API | ❌ | ❌ | ❌ | aggregates only |
+| GitHub Copilot Usage Metrics API | ❌ | ❌ | ❌ | aggregates only |
+| VS Code `vscode.lm` API (your own extension) | ✅ your participant | ✅ your participant | ✅ | ✅ via `countTokens()` |
+| Hooks `.agent.md` / `.github/hooks/*.json` | `prompt` only | ❌ | ❌ | ❌ |
+| APIM AI Gateway (corporate LLM proxy) | ✅ | ✅ | ✅ | ✅ exact, from the provider |
+| `corp.py` (in-house orchestrator on top of Azure OpenAI) | ✅ | ✅ | ✅ | ✅ exact |
 
-→ Conclusión: **arquitectura en 4 capas** que combinadas cubren el 100 %.
+→ Conclusion: **a 4-layer architecture** that, combined, covers 100%.
 
 ---
 
-## 1. Vista general
+## 1. Overview
 
 ```mermaid
 flowchart LR
-    subgraph DEV["Developer en VS Code"]
+    subgraph DEV["Developer in VS Code"]
         direction TB
         D1["Copilot Chat default
 @workspace, @terminal..."]
@@ -37,20 +37,20 @@ flowchart LR
 @legal-counsel"]
     end
 
-    subgraph L4["Capa 4 — Extensión corp-telemetry"]
+    subgraph L4["Layer 4 — corp-telemetry extension"]
         E1["ChatParticipant @corp"]
         E2["vscode.lm.countTokens()
-+ stream completo"]
++ full stream"]
     end
 
-    subgraph L3["Capa 3 — Pipeline corp.py + hooks"]
+    subgraph L3["Layer 3 — corp.py pipeline + hooks"]
         P1["hook_run_corp_pipeline.py"]
         P2["corp.py --case"]
         P3["hook_emit_invocation.py"]
     end
 
-    subgraph L2["Capa 2 — APIM AI Gateway"]
-        G1["Políticas:
+    subgraph L2["Layer 2 — APIM AI Gateway"]
+        G1["Policies:
 azure-openai-emit-token-metric
 llm-token-limit
 content-safety
@@ -58,18 +58,18 @@ semantic-caching"]
         G2["Azure OpenAI / Foundry / Anthropic"]
     end
 
-    subgraph L1["Capa 1 — GitHub Copilot Enterprise"]
+    subgraph L1["Layer 1 — GitHub Copilot Enterprise"]
         A1["Audit Log API
 /orgs/{org}/audit-log"]
         A2["Usage Metrics API
 /enterprises/{ent}/copilot/usage"]
     end
 
-    subgraph TEL["Observabilidad central"]
+    subgraph TEL["Central observability"]
         T1["Azure Application Insights
 + Log Analytics"]
         T2["KQL dashboards
-+ alertas FinOps / Compliance"]
++ FinOps / Compliance alerts"]
     end
 
     D1 -.metadata only.-> A1
@@ -92,35 +92,35 @@ semantic-caching"]
 
 ---
 
-## 2. Capa 1 — GitHub Copilot Enterprise audit & usage
+## 2. Layer 1 — GitHub Copilot Enterprise audit & usage
 
-### Qué cubre
+### What it covers
 
-- **Quién** usa Copilot (por usuario, por equipo, por repo)
-- **Cuándo** y **cuántos** turnos de chat / sugerencias acepta
-- **Qué** features (Chat, completions, PR summaries…)
-- Eventos de **policy violations** y **content filtering**
+- **Who** uses Copilot (per user, per team, per repo)
+- **When** and **how many** chat turns / suggestions they accept
+- **Which** features (Chat, completions, PR summaries…)
+- **Policy violation** and **content filtering** events
 
-### Qué NO cubre
+### What it does NOT cover
 
-- Contenido del prompt o de la respuesta
-- Modelo concreto usado en cada turno (Copilot lo selecciona)
-- Tokens y coste por turno (sólo agregados diarios)
+- Prompt or response content
+- The specific model used on each turn (Copilot picks it)
+- Tokens and cost per turn (daily aggregates only)
 
-### Implementación
+### Implementation
 
-- Script Python `scenario-3/tools/copilot_audit_pull.py`:
-  - Lee `GITHUB_TOKEN` con scope `read:audit_log` + `manage_billing:copilot`
-  - Llama:
+- Python script `scenario-3/tools/copilot_audit_pull.py`:
+  - Reads `GITHUB_TOKEN` with scope `read:audit_log` + `manage_billing:copilot`
+  - Calls:
     - `GET /enterprises/{ent}/audit-log?phrase=action:copilot`
     - `GET /enterprises/{ent}/copilot/usage`
     - `GET /enterprises/{ent}/copilot/billing/seats`
-  - Pagina, deduplica, emite a App Insights como `customEvents`:
-    - `copilot.audit.event` (un span por evento)
-    - `copilot.usage.daily` (un span por día/usuario)
-- Ejecutar cada hora desde GitHub Actions (cron) o desde Azure Functions Timer.
+  - Paginates, deduplicates, emits to App Insights as `customEvents`:
+    - `copilot.audit.event` (one span per event)
+    - `copilot.usage.daily` (one span per day/user)
+- Run hourly from GitHub Actions (cron) or from an Azure Functions Timer.
 
-### Esquema en App Insights
+### App Insights schema
 
 ```text
 customEvents
@@ -135,46 +135,46 @@ customEvents
 
 ---
 
-## 3. Capa 2 — APIM AI Gateway (la pieza más potente)
+## 3. Layer 2 — APIM AI Gateway (the most powerful piece)
 
-### Qué cubre
+### What it covers
 
-**Todo el tráfico LLM corporativo que NO sea Copilot Chat IDE**:
+**All corporate LLM traffic that is NOT Copilot Chat IDE**:
 - `corp.py` → Azure OpenAI
-- Apps internas → Azure OpenAI / Foundry
-- Copilot SDK / Copilot Extensions → backend modelos
-- Agentes Foundry hosted
+- Internal apps → Azure OpenAI / Foundry
+- Copilot SDK / Copilot Extensions → backend models
+- Hosted Foundry agents
 
-→ Para cada llamada: prompt, respuesta, modelo exacto, tokens reales del
-proveedor, latencia, coste, usuario (vía JWT/API key), bloqueo de jailbreaks.
+→ For every call: prompt, response, exact model, real provider tokens,
+latency, cost, user (via JWT/API key), jailbreak blocking.
 
-### Qué NO cubre
+### What it does NOT cover
 
-- GitHub Copilot Chat IDE — esa llamada va GitHub → modelos cerrados, no podemos
-  meterla por nuestro APIM (limitación de plataforma).
+- GitHub Copilot Chat IDE — that call goes GitHub → closed models, we cannot
+  route it through our APIM (platform limitation).
 
-### Diseño
+### Design
 
-- **Recurso**: `apim-corp-aigateway` (SKU StandardV2 mínimo para policies AI)
-- **Backend pool**: Azure OpenAI (modelos prod) + Foundry (modelos staging)
-- **Políticas globales** (todas en `policies/global.xml`):
+- **Resource**: `apim-corp-aigateway` (StandardV2 SKU minimum for AI policies)
+- **Backend pool**: Azure OpenAI (prod models) + Foundry (staging models)
+- **Global policies** (all in `policies/global.xml`):
 
-  | Política | Propósito |
+  | Policy | Purpose |
   |---|---|
-  | `validate-jwt` | Identifica al usuario (Entra ID) |
-  | `azure-openai-emit-token-metric` | Métrica oficial de tokens → App Insights |
-  | `llm-emit-token-metric` | Misma idea para backends no-OpenAI |
-  | `azure-openai-token-limit` | Cuota por usuario/equipo |
-  | `llm-content-safety` | Bloqueo de jailbreaks y prompt injection |
-  | `azure-openai-semantic-cache-store/lookup` | Ahorro de coste |
-  | `set-header X-Corr-Id` | Trazabilidad cross-capa |
-  | `log-to-eventhub` | Audit completo (prompt + completion) a Event Hub → ADX |
+  | `validate-jwt` | Identifies the user (Entra ID) |
+  | `azure-openai-emit-token-metric` | Official token metric → App Insights |
+  | `llm-emit-token-metric` | Same idea for non-OpenAI backends |
+  | `azure-openai-token-limit` | Quota per user/team |
+  | `llm-content-safety` | Blocks jailbreaks and prompt injection |
+  | `azure-openai-semantic-cache-store/lookup` | Cost savings |
+  | `set-header X-Corr-Id` | Cross-layer traceability |
+  | `log-to-eventhub` | Full audit (prompt + completion) to Event Hub → ADX |
 
-- **Producto**: `corp-llm` con suscripción por equipo (`finance-forensics`,
+- **Product**: `corp-llm` with subscription per team (`finance-forensics`,
   `legal`, `governance`).
-- **Diagnostic settings**: → mismo App Insights que Capa 1, 3 y 4.
+- **Diagnostic settings**: → same App Insights as layers 1, 3 and 4.
 
-### Esquema en App Insights
+### App Insights schema
 
 ```text
 customMetrics
@@ -186,35 +186,35 @@ customMetrics
     api       = tostring(customDimensions["ApiName"])
 ```
 
-### Implementación
+### Implementation
 
-- Bicep: `scenario-3/infra/aigateway.bicep` (módulo APIM + AOAI backend)
+- Bicep: `scenario-3/infra/aigateway.bicep` (APIM module + AOAI backend)
 - Policies: `scenario-3/infra/policies/*.xml`
-- `azd up` desde `scenario-3/azure.yaml`
+- `azd up` from `scenario-3/azure.yaml`
 
-> Skill aplicable: `azure-aigateway` (cuando entremos a generar el código).
+> Applicable skill: `azure-aigateway` (when we get to code generation).
 
 ---
 
-## 4. Capa 3 — Pipeline `corp.py` + hooks (ya implementado)
+## 4. Layer 3 — `corp.py` pipeline + hooks (already implemented)
 
-### Qué cubre
+### What it covers
 
-- **Cualquier invocación** a `@corp`, `@fraud-analyst`, `@legal-counsel` desde
-  el IDE o batch:
-  - Hook `UserPromptSubmit` ejecuta `hook_run_corp_pipeline.py` que dispara
-    `corp.py --case <id>` sin intervención del LLM.
-  - Spans OpenTelemetry: `corp.case.run` (padre) + N × `corp.agent.invocation`
-    (hijos) con verdict, tokens, coste, corr_id.
-- **Cualquier turno IDE** a esos 3 agentes (vía hook inline + workspace hook):
-  - `corp.agent.invocation` con `corp.model_known=false`, `corp.stage=ide-prompt`
-  - Marca el turno aunque el modelo subyacente sea opaco.
+- **Every invocation** of `@corp`, `@fraud-analyst`, `@legal-counsel` from
+  the IDE or in batch:
+  - The `UserPromptSubmit` hook runs `hook_run_corp_pipeline.py`, which fires
+    `corp.py --case <id>` without LLM involvement.
+  - OpenTelemetry spans: `corp.case.run` (parent) + N × `corp.agent.invocation`
+    (children) with verdict, tokens, cost, corr_id.
+- **Every IDE turn** to those 3 agents (via inline hook + workspace hook):
+  - `corp.agent.invocation` with `corp.model_known=false`, `corp.stage=ide-prompt`
+  - Marks the turn even when the underlying model is opaque.
 
-### Qué NO cubre
+### What it does NOT cover
 
-- Conversaciones a otros agentes del IDE (Copilot default, agentes de terceros).
+- Conversations with other IDE agents (default Copilot, third-party agents).
 
-### Estado
+### Status
 
 - ✅ `scenario-3/tools/hook_emit_invocation.py`
 - ✅ `scenario-3/tools/hook_run_corp_pipeline.py`
@@ -224,26 +224,26 @@ customMetrics
 
 ---
 
-## 5. Capa 4 — Extensión VS Code `corp-telemetry`
+## 5. Layer 4 — VS Code extension `corp-telemetry`
 
-### Qué cubre
+### What it covers
 
-- Sustituye al `.agent.md` de `@corp`:
-  - Registra un `ChatParticipant` programático.
-  - Tiene acceso a `request.model` (modelo real elegido por el usuario en el
-    dropdown del chat) → captura `family`, `version`, `id`.
-  - Llama `model.countTokens(prompt)` para input tokens **oficiales**.
-  - Hace `model.sendRequest()` ella misma, así puede contar el output token
-    a token.
-  - Calcula coste con `pricing.yaml`, emite span a App Insights, llama por
-    debajo a `corp.py` para meter al fraud-analyst y legal-counsel.
+- Replaces the `.agent.md` for `@corp`:
+  - Registers a programmatic `ChatParticipant`.
+  - Has access to `request.model` (the real model the user picked in the chat
+    dropdown) → captures `family`, `version`, `id`.
+  - Calls `model.countTokens(prompt)` for **official** input tokens.
+  - Calls `model.sendRequest()` itself, so it can count output tokens
+    chunk by chunk.
+  - Calculates cost with `pricing.yaml`, emits a span to App Insights, and
+    underneath calls `corp.py` to invoke fraud-analyst and legal-counsel.
 
-### Qué NO cubre
+### What it does NOT cover
 
-- Otros participants ni chat default — un participant sólo ve sus propios
-  turnos (límite VS Code).
+- Other participants or default chat — a participant only sees its own turns
+  (VS Code limitation).
 
-### Estructura
+### Structure
 
 ```text
 vscode-ext/corp-telemetry/
@@ -251,13 +251,13 @@ vscode-ext/corp-telemetry/
 ├── tsconfig.json
 ├── src/
 │   ├── extension.ts          # activate(): registerChatParticipant('corp', handler)
-│   ├── handler.ts            # captura request.model, tokens, stream
+│   ├── handler.ts            # captures request.model, tokens, stream
 │   ├── telemetry.ts          # ApplicationInsights TelemetryClient
-│   └── pricing.ts            # carga pricing.yaml compartido
+│   └── pricing.ts            # loads shared pricing.yaml
 └── README.md
 ```
 
-### APIs clave
+### Key APIs
 
 ```ts
 const [model] = await vscode.lm.selectChatModels({ family: request.model.family });
@@ -279,48 +279,49 @@ telemetry.emit('corp.agent.invocation', {
 });
 ```
 
-### Política recomendada en Copilot Enterprise
+### Recommended Copilot Enterprise policy
 
-Una vez la extensión esté desplegada en el Marketplace interno:
+Once the extension is deployed to the internal Marketplace:
 
-- **Bloquear** otros chat participants no aprobados (vía `chat.commandCenter.experimental.enabled` + lista blanca de extensiones de la org).
-- **Forzar** `@corp` como única vía para análisis governance (vía
-  `.github/copilot-instructions.md` + revisión de PR).
+- **Block** other non-approved chat participants (via
+  `chat.commandCenter.experimental.enabled` + an org allow-list of extensions).
+- **Force** `@corp` as the only path for governance analysis (via
+  `.github/copilot-instructions.md` + PR review).
 
 ---
 
-## 6. Mapping de necesidades → capa
+## 6. Needs → layer mapping
 
-| Necesito saber… | Capa que lo da |
+| I need to know… | Layer that provides it |
 |---|---|
-| ¿Cuántos turnos hace Pepe a Copilot Chat al mes? | Capa 1 (usage API) |
-| ¿Qué repos usan Copilot? | Capa 1 (audit log) |
-| ¿Hay alguien filtrando código sensible por prompt? | Capa 2 (content-safety + log-to-eventhub) |
-| Coste total LLM en EUR del mes pasado | Capa 2 (token metric) + Capa 3 (corp.cost_usd) |
-| ¿Qué modelo eligió `@corp` en el turno X? | Capa 4 (extension) |
-| ¿Pepe invocó `@fraud-analyst` sobre el caso 012? | Capa 3 (corp.agent.invocation) |
-| ¿Cuántos jailbreaks bloqueamos esta semana? | Capa 2 (content-safety policy) |
-| ¿Qué developer aún no usa Copilot? (waste de licencia) | Capa 1 (seats API) |
+| How many turns does Pepe send to Copilot Chat per month? | Layer 1 (usage API) |
+| Which repos use Copilot? | Layer 1 (audit log) |
+| Is anyone leaking sensitive code via prompts? | Layer 2 (content-safety + log-to-eventhub) |
+| Total LLM cost in EUR last month | Layer 2 (token metric) + Layer 3 (corp.cost_usd) |
+| Which model did `@corp` pick on turn X? | Layer 4 (extension) |
+| Did Pepe invoke `@fraud-analyst` for case 012? | Layer 3 (corp.agent.invocation) |
+| How many jailbreaks did we block this week? | Layer 2 (content-safety policy) |
+| Which devs are still not using Copilot? (license waste) | Layer 1 (seats API) |
 
 ---
 
-## 7. Roadmap de implementación
+## 7. Implementation roadmap
 
-| Sprint | Capa | Entregable | Skill |
+| Sprint | Layer | Deliverable | Skill |
 |---|---|---|---|
 | 1 | **1** | `tools/copilot_audit_pull.py` + GitHub Action cron | — |
-| 2 | **2** | `infra/aigateway.bicep` + policies XML + `azd up` en RG governance | `azure-aigateway` |
-| 3 | **2** | Migrar `corp.py` para que las llamadas a Azure OpenAI vayan por APIM | `azure-aigateway` |
-| 4 | **4** | Scaffold extensión + ChatParticipant + telemetría | `agent-customization` |
-| 5 | **4** | Pack & publish en Marketplace privado de la org | — |
-| 6 | todos | Dashboard KQL único en App Insights con las 4 capas correlacionadas por `corr_id` | `azure-kusto` |
+| 2 | **2** | `infra/aigateway.bicep` + policies XML + `azd up` in governance RG | `azure-aigateway` |
+| 3 | **2** | Migrate `corp.py` so Azure OpenAI calls go through APIM | `azure-aigateway` |
+| 4 | **4** | Scaffold the extension + ChatParticipant + telemetry | `agent-customization` |
+| 5 | **4** | Pack & publish in the org's private Marketplace | — |
+| 6 | all | Single KQL dashboard in App Insights with the 4 layers correlated by `corr_id` | `azure-kusto` |
 
 ---
 
-## 8. KQL maestro (cuando esté todo en App Insights)
+## 8. Master KQL (once everything is in App Insights)
 
 ```kusto
-// Vista 360: qué pasó con un usuario en las últimas 24h
+// 360 view: what happened with a user in the last 24h
 let actor = "jose.flores@example.com";
 union
     (customEvents | where name startswith "copilot."),
@@ -351,15 +352,15 @@ union
 
 ---
 
-## 9. Lo que NUNCA tendremos (y cómo mitigarlo)
+## 9. What we will NEVER have (and how to mitigate it)
 
-| Limitación | Mitigación |
+| Limitation | Mitigation |
 |---|---|
-| Contenido de prompts a Copilot Chat default | Política org: prohibir secretos en prompts + DLP en endpoints |
-| Modelo real de Copilot Chat default | Asumir worst-case en pricing; usar dashboard de billing de GitHub |
-| Tokens reales por turno de Copilot Chat default | Estimación con tiktoken sobre prompt visible al hook (sólo input) |
-| Conversaciones a chat participants de terceros | Lista blanca de extensiones + revisión de PRs |
+| Prompt content for default Copilot Chat | Org policy: ban secrets in prompts + DLP on endpoints |
+| Real model for default Copilot Chat | Assume worst-case pricing; use GitHub's billing dashboard |
+| Real tokens per turn for default Copilot Chat | Estimate with tiktoken on the prompt visible to the hook (input only) |
+| Conversations with third-party chat participants | Extension allow-list + PR review |
 
 ---
 
-*Documento vivo. Actualizar al cerrar cada sprint del roadmap.*
+*Living document. Update at the end of each roadmap sprint.*
